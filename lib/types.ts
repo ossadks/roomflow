@@ -11,6 +11,7 @@ export type PropertyBranding = {
   tip_preset_1: number;
   tip_preset_2: number;
   tip_preset_3: number;
+  property_type: 'hotel' | 'airbnb';
 };
 
 export type RoomFlowContext = {

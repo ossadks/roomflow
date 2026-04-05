@@ -69,7 +69,7 @@ export default function BrandShell({
                   fontSize: 20
                 }}
               >
-                RF
+                LOGO
               </div>
             )}
 

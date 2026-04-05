@@ -12,6 +12,8 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
     context.property.tip_preset_3
   ];
 
+  const isAirbnb = context.property.property_type === 'airbnb';
+
   async function handleCheckout(amount: number) {
     try {
       setLoadingAmount(amount);
@@ -46,14 +48,16 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
 
   return (
     <div style={styles.wrapper}>
-      <div style={styles.eyebrow}>RoomFlow</div>
+      <div style={styles.eyebrow}>Guest Appreciation</div>
 
       <p style={styles.welcomeText}>
         {context.property.welcome_message}
       </p>
 
       <h1 style={styles.title}>
-        Support housekeeping for Room {context.roomNumber}
+        {isAirbnb
+          ? 'Support your cleaning team'
+          : `Support housekeeping for Room ${context.roomNumber}`}
       </h1>
 
       {context.staffName && (
@@ -87,10 +91,15 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
                 opacity: loadingAmount !== null && !active ? 0.7 : 1
               }}
             >
-              <div style={styles.amountLabel}>
-                {active ? 'Opening checkout…' : `$${amount}`}
+              <div style={styles.amountLabel}>${amount}</div>
+              <div
+                style={{
+                  ...styles.amountSubtext,
+                  color: active ? '#ffffff' : '#64748b'
+                }}
+              >
+                Show appreciation
               </div>
-              {!active && <div style={styles.amountSubtext}>Secure checkout</div>}
             </button>
           );
         })}
@@ -157,7 +166,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   amountSubtext: {
     marginTop: 6,
-    fontSize: 13,
-    color: '#64748b'
+    fontSize: 13
   }
 };

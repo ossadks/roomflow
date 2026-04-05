@@ -61,8 +61,8 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
       </h1>
 
       {context.staffName && (
-        <p style={styles.staffText}>
-          Serviced by <span style={styles.staffName}>{context.staffName}</span>
+        <p style={{ ...styles.staffText, color: '#16a34a', fontWeight: 500 }}>
+          100% of your tip goes to the housekeeping team
         </p>
       )}
 

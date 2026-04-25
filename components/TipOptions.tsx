@@ -8,7 +8,8 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
   const [showCustom, setShowCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
 
-  const isAirbnb = context.property.property_type === 'airbnb';
+  const isAirbnb =
+    context.property.property_type?.toLowerCase() === 'airbnb';
 
   const presets = [
     {
@@ -79,10 +80,6 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
         {context.property.welcome_message || 'Thank you for your stay.'}
       </p>
 
-      <p style={{ fontSize: 12, color: 'red' }}>
-        Property type: {context.property.property_type || 'missing'}
-      </p>
-      
       <h1 style={styles.title}>
         {isAirbnb
           ? 'Show your appreciation by leaving a tip for the cleaning team.'

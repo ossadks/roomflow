@@ -11,8 +11,7 @@ export default function BrandShell({
     <main
       style={{
         minHeight: '100vh',
-        background:
-          'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+        background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
         padding: '32px 18px',
         fontFamily:
           'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
@@ -43,17 +42,29 @@ export default function BrandShell({
             }}
           >
             {property.logo_url ? (
-              <img
-                src={property.logo_url}
-                alt={`${property.name} logo`}
+              <div
                 style={{
                   width: 58,
                   height: 58,
                   borderRadius: 16,
-                  objectFit: 'cover',
-                  background: '#ffffff'
+                  background: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  padding: 8
                 }}
-              />
+              >
+                <img
+                  src={property.logo_url}
+                  alt={property.name}
+                  style={{
+                    maxHeight: '100%',
+                    maxWidth: '100%',
+                    objectFit: 'contain'
+                  }}
+                />
+              </div>
             ) : (
               <div
                 style={{

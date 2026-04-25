@@ -75,26 +75,20 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
 
   return (
     <div style={styles.wrapper}>
-      <div style={styles.eyebrow}>Guest Appreciation</div>
-
       <p style={styles.welcomeText}>
-        {context.property.welcome_message}
+        {context.property.welcome_message || 'Thank you for your stay.'}
       </p>
 
       <h1 style={styles.title}>
         {isAirbnb
-          ? 'Support your cleaning team'
+          ? 'Show your appreciation by leaving a tip for the cleaning team.'
           : `Support housekeeping for Room ${context.roomNumber}`}
       </h1>
 
-      <p style={styles.trustText}>
-        {context.property.property_type === 'hotel'
-          ? '100% of your tip goes to the housekeeping team'
-          : 'Your tip supports the cleaning team'}
-      </p>
-
       <p style={styles.subtitle}>
-        A small gesture goes a long way for our team
+        {isAirbnb
+          ? 'A small gesture goes a long way.'
+          : '100% of your tip goes to the housekeeping team.'}
       </p>
 
       <div style={styles.buttonGrid}>
@@ -195,14 +189,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   wrapper: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 10,
-  },
-  eyebrow: {
-    fontSize: 12,
-    letterSpacing: '0.16em',
-    textTransform: 'uppercase',
-    color: '#94a3b8',
-    fontWeight: 700,
+    gap: 12,
   },
   welcomeText: {
     margin: 0,
@@ -213,18 +200,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   title: {
     margin: '4px 0 0',
     fontSize: 34,
-    lineHeight: 1.08,
+    lineHeight: 1.15,
     color: '#0f172a',
     fontWeight: 700,
   },
-  trustText: {
-    margin: 0,
-    fontSize: 15,
-    color: '#16a34a',
-    fontWeight: 500,
-  },
   subtitle: {
-    margin: '4px 0 18px',
+    margin: '2px 0 18px',
     fontSize: 15,
     lineHeight: 1.7,
     color: '#64748b',

@@ -2,6 +2,9 @@ import BrandShell from '@/components/BrandShell';
 import TipOptions from '@/components/TipOptions';
 import { getRoomFlowContextByToken } from '@/lib/get-roomflow-context';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function TipPage({
   searchParams
 }: {

@@ -7,6 +7,9 @@ export default function BrandShell({
   property: PropertyBranding;
   children: React.ReactNode;
 }) {
+  const isAirbnb =
+    property?.property_type?.toLowerCase() === 'airbnb';
+
   return (
     <main
       style={{
@@ -42,29 +45,42 @@ export default function BrandShell({
             }}
           >
             {property.logo_url ? (
-              <div
-                style={{
-                  width: 58,
-                  height: 58,
-                  borderRadius: 16,
-                  background: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  padding: 8
-                }}
-              >
+              isAirbnb ? (
                 <img
                   src={property.logo_url}
                   alt={property.name}
                   style={{
-                    maxHeight: '100%',
-                    maxWidth: '100%',
+                    height: 52,
+                    width: 'auto',
+                    maxWidth: 170,
                     objectFit: 'contain'
                   }}
                 />
-              </div>
+              ) : (
+                <div
+                  style={{
+                    height: 64,
+                    minWidth: 64,
+                    borderRadius: 12,
+                    background: 'rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 6
+                  }}
+                >
+                  <img
+                    src={property.logo_url}
+                    alt={property.name}
+                    style={{
+                      height: '100%',
+                      width: 'auto',
+                      maxWidth: 170,
+                      objectFit: 'contain'
+                    }}
+                  />
+                </div>
+              )
             ) : (
               <div
                 style={{

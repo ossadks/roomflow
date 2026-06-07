@@ -13,7 +13,7 @@ export async function GET(
     return NextResponse.json({ error: 'Missing token' }, { status: 400 });
   }
 
-  const domain = process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000';
+  const domain = process.env.NEXT_PUBLIC_DOMAIN || 'https://roomflow-one.vercel.app';
   const guestUrl = `${domain}/q/${token}`;
 
   const pngBuffer = await QRCode.toBuffer(guestUrl, {

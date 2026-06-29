@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
+function calculateGrossWithStripeFee(tipCents: number) {
+  const stripePercent = 0.029;
+  const stripeFixedCents = 30;
+
+  return Math.ceil((tipCents + stripeFixedCents) / (1 - stripePercent));
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -24,10 +31,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_APP_URL;
+    const appUrl =
+      process.env.NEXT_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_APP_URL;
+
     if (!appUrl) {
       return NextResponse.json(
-        { error: 'Missing NEXT_PUBLIC_DOMAIN or NEXT_PUBLIC_APP_URL in .env.local' },
+        {
+          error:
+            'Missing NEXT_PUBLIC_DOMAIN or NEXT_PUBLIC_APP_URL in .env.local'
+        },
         { status: 500 }
       );
     }
@@ -41,11 +53,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const tipCents = Math.round(numericAmount * 100);
+    const grossCents = calculateGrossWithStripeFee(tipCents);
+    const estimatedFeeCents = grossCents - tipCents;
+
     const supabase = createServerSupabaseClient();
 
     const { data: property, error: propertyError } = await supabase
       .from('properties')
-      .select('id, name')
+      .select('id, name, property_type')
       .eq('id', propertyId)
       .single();
 
@@ -64,7 +80,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const isAirbnb =
+      property.property_type?.toLowerCase() === 'airbnb' ||
+      property.property_type?.toLowerCase() === 'str';
+
+    const teamLabel = isAirbnb ? 'cleaning team' : 'housekeeping team';
+
     const successUrl = `${appUrl}/success?propertyId=${property.id}`;
+
     const cancelUrl = token
       ? `${appUrl}/tip?token=${encodeURIComponent(token)}`
       : `${appUrl}/tip`;
@@ -77,9 +100,12 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `${property.name} housekeeping tip`
+              name: `${property.name} ${teamLabel} tip`,
+              description: `Includes estimated processing fee so 100% of the $${numericAmount.toFixed(
+                2
+              )} tip goes to the ${teamLabel}.`
             },
-            unit_amount: Math.round(numericAmount * 100)
+            unit_amount: grossCents
           },
           quantity: 1
         }
@@ -87,7 +113,11 @@ export async function POST(request: Request) {
       metadata: {
         roomId: String(roomId),
         propertyId: String(propertyId),
-        amount: String(numericAmount)
+        token: token ? String(token) : '',
+        amount: String(numericAmount),
+        tipCents: String(tipCents),
+        grossCents: String(grossCents),
+        estimatedFeeCents: String(estimatedFeeCents)
       },
       success_url: successUrl,
       cancel_url: cancelUrl

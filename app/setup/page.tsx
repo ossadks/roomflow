@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type PropertyType = 'str' | 'hotel';
 type RoomSetupMode = 'range' | 'upload';
@@ -13,7 +13,9 @@ export default function SetupPage() {
   const [city, setCity] = useState('');
   const [stateName, setStateName] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#0B102F');
-  const [accentColor, setAccentColor] = useState('#B88A44');
+  const [accentColor, setAccentColor] = useState('#B88A44'); 
+
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const [strPropertyCount, setStrPropertyCount] = useState('1');
   const [strQrMode, setStrQrMode] = useState<'shared' | 'per_property'>('per_property');
@@ -27,6 +29,98 @@ export default function SetupPage() {
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePayroll, setAgreePayroll] = useState(false);
+
+  const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [launchMode, setLaunchMode] = useState<'pilot' | 'active'>('pilot');
+
+  const [stripeConnected, setStripeConnected] = useState(false);
+
+  const [setupError, setSetupError] = useState('');
+
+  useEffect(() => {
+    async function handleStripeReturn() {
+      const params = new URLSearchParams(window.location.search);
+
+      const returnedPropertyId = params.get('propertyId');
+      if (returnedPropertyId) {
+        setPropertyId(returnedPropertyId);
+      }
+      const stripeStatus = params.get('stripe');
+
+      if (!returnedPropertyId || stripeStatus !== 'return') return;
+
+      const savedState = sessionStorage.getItem('roomflowSetupState');
+
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+
+        setPropertyType(parsed.propertyType || 'str');
+        setPropertyName(parsed.propertyName || '');
+        setCity(parsed.city || '');
+        setStateName(parsed.stateName || '');
+        setPrimaryColor(parsed.primaryColor || '#0B102F');
+        setAccentColor(parsed.accentColor || '#B88A44');
+        setRoomSetupMode(parsed.roomSetupMode || 'range');
+        setStartRoom(parsed.startRoom || '101');
+        setEndRoom(parsed.endRoom || '150');
+        setExcludedRooms(parsed.excludedRooms || '');
+        setUploadedRooms(parsed.uploadedRooms || '');
+        setAdditionalRooms(parsed.additionalRooms || '');
+        setLaunchMode(parsed.launchMode || 'pilot');
+      }
+
+      try {
+        const propertyResponse = await fetch(
+          `/api/setup/get-draft-property/${returnedPropertyId}`
+        );
+
+        const propertyData = await propertyResponse.json();
+
+        if (!propertyResponse.ok) {
+          setSetupError(propertyData.error || 'Unable to reload property.');
+          return;
+        }
+
+        const property = propertyData.property;
+
+        setPropertyType(property.property_type || 'str');
+        setPropertyName(property.name || '');
+        setCity(property.city || '');
+        setStateName(property.state || '');
+        setPrimaryColor(property.primary_color || '#0B102F');
+        setAccentColor(property.accent_color || '#B88A44');
+        setLaunchMode(property.launch_mode || 'pilot');
+        setAgreeTerms(Boolean(property.terms_accepted));
+        setAgreePayroll(Boolean(property.pilot_agreement_accepted || property.privacy_accepted));
+
+        const stripeResponse = await fetch(
+          `/api/stripe/check-account/${returnedPropertyId}`,
+          { method: 'POST' }
+        );
+
+        const stripeData = await stripeResponse.json();
+
+        if (!stripeResponse.ok) {
+          setSetupError(stripeData.error || 'Unable to verify Stripe.');
+          return;
+        }
+
+        setStripeConnected(stripeData.complete);
+        setStep(8);
+
+        if (!stripeData.complete) {
+          setSetupError(
+            'Stripe onboarding was started, but it is not fully complete yet.'
+          );
+        }
+      } catch (error) {
+        console.error(error);
+        setSetupError('Unable to complete Stripe return.');
+      }
+    }
+
+    handleStripeReturn();
+  }, []);
 
   const isHotel = propertyType === 'hotel';
   const isSTR = propertyType === 'str';
@@ -75,6 +169,38 @@ export default function SetupPage() {
     .map((room) => room.trim())
     .filter(Boolean);
 
+  function validateStep(currentStep: number) {
+    setSetupError('');
+
+    if (currentStep === 1 && !propertyType) {
+      setSetupError('Please select a property type.');
+      return false;
+    }
+
+    if (currentStep === 2) {
+      if (!propertyName || !city || !stateName) {
+        setSetupError('Please complete the property name, city, and state.');
+        return false;
+      }
+    }
+
+    if (currentStep === 6) {
+      if (!agreeTerms || !agreePayroll) {
+        setSetupError('Please accept the agreements before continuing.');
+        return false;
+      }
+    }
+
+    if (currentStep === 7) {
+      if (!stripeConnected) {
+        setSetupError('Please connect Stripe before continuing.');
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   return Array.from(new Set([...baseRooms, ...addOns]));
 }, [
   isSTR,
@@ -114,45 +240,160 @@ export default function SetupPage() {
     return null;
   }, [isSTR, roomCount, strPropertyCount]);
 
+  function validateStep(currentStep: number) {
+    setSetupError('');
+
+    if (currentStep === 1 && !propertyType) {
+      setSetupError('Please select a property type.');
+      return false;
+    }
+
+    if (currentStep === 2) {
+      if (!propertyName || !city || !stateName) {
+        setSetupError(
+          'Please complete the property name, city, and state.'
+        );
+        return false;
+      }
+    }
+
+    if (currentStep === 6) {
+      if (!agreeTerms || !agreePayroll) {
+        setSetupError(
+          'Please accept the agreements before continuing.'
+        );
+        return false;
+      }
+    }
+
+    if (currentStep === 7) {
+      if (!stripeConnected) {
+        setSetupError(
+          'Please connect Stripe before continuing.'
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   function nextStep() {
-    setStep((current) => Math.min(current + 1, 7));
+    if (!validateStep(step)) return;
+
+    setStep((current) => current + 1);
   }
 
   function previousStep() {
     setStep((current) => Math.max(current - 1, 1));
   }
 
-  async function handleGenerateProperty() {
-  try {
-    const response = await fetch('/api/setup/create-property', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        propertyType,
-        propertyName,
-        city,
-        stateName,
-        primaryColor,
-        accentColor,
-        roomCount,
-        monthlyPrice,
-        rooms
-      })
-    });
+  async function handleConnectStripe() {
+    try {
+      setSetupError('');
 
-    const data = await response.json();
+      const response = await fetch('/api/setup/create-draft-property', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          propertyType,
+          propertyName,
+          city,
+          stateName,
+          primaryColor,
+          accentColor,
+          monthlyPrice,
+          launchMode
+        })
+      });
 
-    if (!response.ok) {
-      alert(data.error || 'Something went wrong.');
-      return;
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSetupError(data.error || 'Unable to create draft property.');
+        return;
+      }
+
+      setPropertyId(data.propertyId);
+
+      const connectResponse = await fetch(
+        `/api/stripe/connect/${data.propertyId}`,
+        {
+          method: 'POST'
+        }
+      );
+
+      const connectData = await connectResponse.json();
+
+      if (!connectResponse.ok) {
+        setSetupError(connectData.error || 'Unable to start Stripe onboarding.');
+        return;
+      }
+
+      sessionStorage.setItem(
+        'roomflowSetupState',
+        JSON.stringify({
+          propertyType,
+          propertyName,
+          city,
+          stateName,
+          primaryColor,
+          accentColor,
+          roomSetupMode,
+          startRoom,
+          endRoom,
+          excludedRooms,
+          uploadedRooms,
+          additionalRooms,
+          launchMode,
+          monthlyPrice
+        })
+      );
+
+      window.location.href = connectData.url;
+    } catch (error) {
+      console.error(error);
+      setSetupError('Unable to connect Stripe.');
     }
-
-    window.location.href = `/portal/${data.propertyId}`;
-  } catch (error) {
-    console.error(error);
-    alert('Something went wrong creating the property.');
   }
-}
+
+  async function handleGenerateProperty() {
+    try {
+      if (!propertyId) {
+        setSetupError(
+          'Stripe onboarding must be completed before generating the property.'
+        );
+        return;
+      }
+
+      const response = await fetch(`/api/setup/finalize-property/${propertyId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          rooms,
+          roomCount,
+          launchMode,
+          monthlyPrice
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSetupError(data.error || 'Something went wrong.');
+        return;
+      }
+
+      window.location.href = `/portal/${data.propertyId}`;
+    } catch (error) {
+      console.error(error);
+      setSetupError('Something went wrong creating the property.');
+    }
+  }
 
   return (
     <main
@@ -235,7 +476,19 @@ export default function SetupPage() {
                   <input
                     value={propertyName}
                     onChange={(e) => setPropertyName(e.target.value)}
-                    placeholder="E-Run Homes"
+                    placeholder="Upper Echelon at The Domain"
+                    style={inputStyle}
+                  />
+                </Field>
+
+                <Field label="Logo Upload">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setLogoFile(file);
+                    }}
                     style={inputStyle}
                   />
                 </Field>
@@ -245,7 +498,7 @@ export default function SetupPage() {
                     <input
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="Houston"
+                      placeholder="Austin"
                       style={inputStyle}
                     />
                   </Field>
@@ -515,6 +768,30 @@ export default function SetupPage() {
                 </label>
 
                 <div style={summaryBoxStyle}>
+                  <strong>Launch Option</strong>
+
+                  <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="radio"
+                        checked={launchMode === 'pilot'}
+                        onChange={() => setLaunchMode('pilot')}
+                      />
+                      Start with 14-Day Pilot — Recommended
+                    </label>
+
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="radio"
+                        checked={launchMode === 'active'}
+                        onChange={() => setLaunchMode('active')}
+                      />
+                      Activate property immediately
+                    </label>
+                  </div>
+                </div>
+
+                <div style={summaryBoxStyle}>
                   Stripe Connect setup will be added next. This will allow payouts to be
                   connected directly to the property account.
                 </div>
@@ -522,6 +799,47 @@ export default function SetupPage() {
             )}
 
             {step === 7 && (
+              <StepCard
+                title="Connect Stripe"
+                subtitle="Connect payouts before generating the property and QR assets."
+              >
+                <div style={summaryBoxStyle}>
+                  <strong>Stripe Hosted Onboarding</strong>
+
+                  <p style={{ marginBottom: 0, color: '#64748b' }}>
+                    RoomFlow uses Stripe Connect so payouts can be routed directly to the
+                    property account. Stripe will securely collect the required business,
+                    banking, and verification information.
+                  </p>
+                </div>
+
+                <div style={summaryBoxStyle}>
+                  <strong>Launch Mode</strong>
+
+                  <p style={{ marginBottom: 0, color: '#64748b' }}>
+                    {launchMode === 'pilot'
+                      ? 'This property will start in a 14-day pilot before activation.'
+                      : 'This property will be marked active after setup is complete.'}
+                  </p>
+                </div>
+
+                <div style={{ marginTop: 20 }}>
+                  <button
+                    type="button"
+                    onClick={handleConnectStripe}
+                    style={{
+                      ...buttonStyle,
+                      opacity: agreeTerms && agreePayroll ? 1 : 0.55
+                    }}
+                    disabled={!agreeTerms || !agreePayroll}
+                  >
+                    Connect Stripe
+                  </button>
+                </div>
+              </StepCard>
+            )}
+
+            {step === 8 && (
               <StepCard
                 title="Asset Package Preview"
                 subtitle="These are the assets RoomFlow will generate for this property."
@@ -533,25 +851,34 @@ export default function SetupPage() {
                 </div>
 
                 <div style={summaryBoxStyle}>
-                  <strong>Next build:</strong>
+                  <strong>Ready to Generate</strong>
+
                   <p style={{ marginBottom: 0, color: '#64748b' }}>
-                    Generate property in Supabase, create rooms, create QR tokens, and
-                    generate downloadable assets.
+                    RoomFlow will create the property, rooms or units, QR tokens, guest
+                    links, and downloadable asset packages.
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleGenerateProperty}
-                  style={{
-                    ...buttonStyle,
-                    opacity: agreeTerms && agreePayroll ? 1 : 0.55
-                  }}
-                  disabled={!agreeTerms || !agreePayroll}
-                >
-                  Generate Property
-                </button>
+                <div style={{ marginTop: 20 }}>
+                  <button
+                    type="button"
+                    onClick={handleGenerateProperty}
+                    style={{
+                      ...buttonStyle,
+                      opacity: agreeTerms && agreePayroll && stripeConnected ? 1 : 0.55
+                    }}
+                    disabled={!agreeTerms || !agreePayroll || !stripeConnected}
+                  >
+                    Generate Property
+                  </button>
+                </div>
               </StepCard>
+            )}
+
+            {setupError && (
+              <div style={setupErrorStyle}>
+                {setupError}
+              </div>
             )}
 
             <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
@@ -561,7 +888,7 @@ export default function SetupPage() {
                 </button>
               )}
 
-              {step < 7 && (
+              {step < 8 && (
                 <button type="button" onClick={nextStep} style={buttonStyle}>
                   Continue
                 </button>
@@ -916,4 +1243,15 @@ const checkboxLabelStyle: React.CSSProperties = {
   marginBottom: 12,
   color: '#0f172a',
   lineHeight: 1.5
+};
+
+const setupErrorStyle: React.CSSProperties = {
+  marginTop: 16,
+  marginBottom: 16,
+  padding: '12px 14px',
+  borderRadius: 12,
+  background: '#fef2f2',
+  color: '#991b1b',
+  fontWeight: 700,
+  fontSize: 14
 };

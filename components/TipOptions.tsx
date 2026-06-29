@@ -1,15 +1,35 @@
 'use client';
 
 import { useState } from 'react';
+import { Info } from 'lucide-react';
 import type { RoomFlowContext } from '@/lib/types';
+
+function calculateGrossWithStripeFee(tipCents: number) {
+  const stripePercent = 0.029;
+  const stripeFixedCents = 30;
+
+  return Math.ceil((tipCents + stripeFixedCents) / (1 - stripePercent));
+}
+
+function calculateEstimatedFee(tipCents: number) {
+  return calculateGrossWithStripeFee(tipCents) - tipCents;
+}
+
+function formatMoneyFromCents(cents: number) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 export default function TipOptions({ context }: { context: RoomFlowContext }) {
   const [loadingAmount, setLoadingAmount] = useState<number | null>(null);
   const [showCustom, setShowCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
+  const [showFeeInfo, setShowFeeInfo] = useState(false);
 
   const isAirbnb =
-    context.property.property_type?.toLowerCase() === 'airbnb';
+    context.property.property_type?.toLowerCase() === 'airbnb' ||
+    context.property.property_type?.toLowerCase() === 'str';
+
+  const teamLabel = isAirbnb ? 'cleaning team' : 'housekeeping team';
 
   const presets = [
     {
@@ -26,11 +46,23 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
     },
   ];
 
+  const displayAmount =
+    showCustom && Number(customAmount) > 0
+      ? Number(customAmount)
+      : context.property.tip_preset_2;
+
+  const displayTipCents = Math.round(displayAmount * 100);
+  const displayEstimatedFeeCents = calculateEstimatedFee(displayTipCents);
+
   async function handleCheckout(amount: number) {
     if (!amount || Number.isNaN(amount) || amount <= 0) {
       alert('Please enter a valid amount.');
       return;
     }
+
+    const tipCents = Math.round(amount * 100);
+    const grossCents = calculateGrossWithStripeFee(tipCents);
+    const estimatedFeeCents = grossCents - tipCents;
 
     try {
       setLoadingAmount(amount);
@@ -40,6 +72,9 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount,
+          tipCents,
+          grossCents,
+          estimatedFeeCents,
           roomId: context.roomId,
           propertyId: context.property.id,
           token: context.token,
@@ -88,8 +123,8 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
 
       <p style={styles.subtitle}>
         {isAirbnb
-          ? 'A small gesture goes a long way.'
-          : '100% of your tip goes to the housekeeping team.'}
+        ? 'A small gesture goes a long way.'
+        : '100% of your tip goes to the housekeeping team.'}
       </p>
 
       <div style={styles.buttonGrid}>
@@ -108,8 +143,8 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
                 border: active
                   ? `2px solid ${context.property.accent_color}`
                   : isMiddle
-                  ? `2px solid ${context.property.accent_color}`
-                  : '1px solid #e2e8f0',
+                    ? `2px solid ${context.property.accent_color}`
+                    : '1px solid #e2e8f0',
                 background: active ? context.property.accent_color : '#ffffff',
                 color: active ? '#ffffff' : '#0f172a',
                 boxShadow: isMiddle
@@ -182,6 +217,52 @@ export default function TipOptions({ context }: { context: RoomFlowContext }) {
           </div>
         )}
       </div>
+      
+      <div
+        style={{
+          ...styles.feeNotice,
+          border: `1px solid ${context.property.accent_color}33`,
+          background: `${context.property.accent_color}08`,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setShowFeeInfo(!showFeeInfo)}
+          style={{
+            ...styles.infoButton,
+            border: `1px solid ${context.property.accent_color}`,
+            color: context.property.accent_color,
+          }}
+        >
+          <Info
+            size={18}
+            strokeWidth={2.2}
+            color={context.property.accent_color}
+          />
+        </button>
+
+        <span>
+          A {formatMoneyFromCents(displayEstimatedFeeCents)} processing fee is
+          included so the {teamLabel} receives{' '}
+          <strong>100% of your selected tip.</strong>
+        </span>
+      </div>
+
+      {showFeeInfo && (
+        <div style={styles.feePopover}>
+          <strong>Why is there a processing fee?</strong>
+
+          <p style={{ marginTop: 10 }}>
+            RoomFlow includes a small processing fee so your selected tip goes
+            entirely to the housekeeping team.
+          </p>
+
+          <p>
+            Payments are securely processed through <strong>Stripe</strong>, and the
+            fee covers payment processing costs.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -272,4 +353,65 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 15,
     cursor: 'pointer',
   },
+  feeIcon: {
+    width: 22,
+    height: 22,
+    minWidth: 22,
+    borderRadius: 999,
+    border: '2px solid #0f172a',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 13,
+    fontWeight: 900,
+    lineHeight: 1,
+  },
+  feeNoticeText: {
+    margin: 0,
+    fontSize: 14,
+    lineHeight: 1.45,
+    fontWeight: 600,
+    color: '#0f172a',
+  },
+  feeNotice: {
+  marginTop: 18,
+  padding: '14px 18px',
+  borderRadius: 14,
+  border: '1px solid #dbe3ef',
+  background: '#f8fafc',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  fontSize: 15,
+  color: '#0f172a',
+},
+
+infoButton: {
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  border: '1px solid #cbd5e1',
+  background: '#ffffff',
+  cursor: 'pointer',
+  fontWeight: 700,
+  fontSize: 15,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#0f172a',
+  flexShrink: 0,
+},
+
+feePopover: {
+  marginTop: 12,
+  padding: 18,
+  borderRadius: 14,
+  background: '#ffffff',
+  border: '1px solid #dbe3ef',
+  boxShadow: '0 12px 32px rgba(15,23,42,.08)',
+  color: '#475569',
+  lineHeight: 1.7,
+  fontSize: 14,
+},
 };
+
